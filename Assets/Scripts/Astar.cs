@@ -18,10 +18,34 @@ public class Astar
     /// <returns></returns>
     public List<Vector2Int> FindPathToTarget(Vector2Int startPos, Vector2Int endPos, Cell[,] grid)
     {
-        Node startCell = new Node(startPos,null,0,0);
-        Node endCell = new Node();
+        List<Vector2Int> path = new List<Vector2Int>();
+        Cell nextCell = null;
 
-        return null;
+        Cell startCell = new Cell();
+        startCell.gridPosition = startPos;
+        Node startNode = new Node();
+        startNode.position = startPos;
+
+        //First point of path
+        path.Add(startPos);
+
+        Cell endCell = new Cell();
+        endCell.gridPosition = endPos;
+        Node endNode = new Node();
+        endNode.position = endPos;
+
+        
+        foreach (Cell cell in startCell.GetNeighbours(grid))
+        {
+            if(!cell.HasWall(Wall.UP) || !cell.HasWall(Wall.LEFT))
+                path.Add(cell.gridPosition);
+        }
+
+        //Always add this last
+        path.Add(endPos);
+       
+        //return path;
+        return path;
     }
 
     /// <summary>
@@ -45,7 +69,7 @@ public class Astar
         public float FScore { //GScore + HScore
             get { return GScore + HScore; }
         }
-        public float GScore; //Current Travelled Distance
+        public float GScore; //Current Travelled Distance (Step distance + previous step distance)
         public float HScore; //Distance estimated based on Heuristic
 
         public Node() { }
