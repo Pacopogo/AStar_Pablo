@@ -6,8 +6,11 @@ using System.Linq;
 public class Astar
 {
     /// <summary>
-    /// TODO: Implement this function so that it returns a list of Vector2Int positions which describes a path from the startPos to the endPos
-    /// Note that you will probably need to add some helper functions
+    /// TODO: Implement this function so that it returns a list of Vector2Int positions 
+    /// which describes a path from the startPos to the endPos
+    /// 
+    /// NOTE:
+    /// that you will probably need to add some helper functions
     /// </summary>
     /// <param name="startPos"></param>
     /// <param name="endPos"></param>
@@ -15,7 +18,20 @@ public class Astar
     /// <returns></returns>
     public List<Vector2Int> FindPathToTarget(Vector2Int startPos, Vector2Int endPos, Cell[,] grid)
     {
+        Node startCell = new Node(startPos,null,0,0);
+        Node endCell = new Node();
+
         return null;
+    }
+
+    /// <summary>
+    /// Note:
+    /// Check if it has walls,
+    /// Set & Get the: FScore, GScore & HScore
+    /// </summary>
+    private void CalculateNextNode()
+    {
+
     }
 
     /// <summary>
