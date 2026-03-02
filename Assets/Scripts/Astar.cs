@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using System.Linq;
+using System.Reflection;
 
 public class Astar
 {
@@ -16,46 +17,131 @@ public class Astar
     /// <param name="endPos"></param>
     /// <param name="grid"></param>
     /// <returns></returns>
+    /// 
+
+    private const int GScoreStep = 1;
+
     public List<Vector2Int> FindPathToTarget(Vector2Int startPos, Vector2Int endPos, Cell[,] grid)
     {
         List<Vector2Int> path = new List<Vector2Int>();
-        Cell nextCell = null;
 
-        Cell startCell = new Cell();
-        startCell.gridPosition = startPos;
-        Node startNode = new Node();
-        startNode.position = startPos;
+        List<Vector2Int> availableTiles = new List<Vector2Int>();
+
+        List<Node> currentNodes = new List<Node>();
+        
+
+        Node currentTile = new Node();  //the orign form where you are calculating
+        currentTile.position = startPos;
+        currentTile.GScore = 0;
+        currentTile.HScore = currentTile.CalculateManhattan(endPos);
 
         //First point of path
-        path.Add(startPos);
+        path.Add(currentTile.position);
 
-        Cell endCell = new Cell();
-        endCell.gridPosition = endPos;
-        Node endNode = new Node();
-        endNode.position = endPos;
-
-        
-        foreach (Cell cell in startCell.GetNeighbours(grid))
+        foreach (var tile in GetAvailibleNeigbours(currentTile, grid))
         {
-            if(!cell.HasWall(Wall.UP) || !cell.HasWall(Wall.LEFT))
-                path.Add(cell.gridPosition);
+            Node tileNode = new Node();
+            tileNode.position = tile.gridPosition;
+            tileNode.GScore = currentTile.GScore + GScoreStep;
+            tileNode.HScore = tileNode.CalculateManhattan(endPos);
+
+            currentNodes.Add(tileNode);
         }
 
-        //Always add this last
+        Node lowestNode = currentNodes[0];
+        float minFScore = currentNodes[0].FScore;
+
+        foreach (var node in currentNodes)
+        {
+            if(node.FScore < minFScore)
+            {
+                lowestNode = node;
+                minFScore = node.FScore;
+            }
+        }
+
+        path.Add(lowestNode.position);
+
+        while (true)
+        {
+            break;
+            if (currentTile.position == endPos)
+                break;
+
+            List<Vector2Int> newTiles = new List<Vector2Int>();
+
+            foreach (var tile in availableTiles)
+            {
+                currentTile.position = tile;
+
+                foreach (var t in GetAvailibleNeigbours(currentTile, grid))
+                {
+                    newTiles.Add(t.gridPosition);
+                    path.Add(t.gridPosition);
+                }
+            }
+            
+            foreach(var tile in newTiles)
+            {
+                availableTiles.Add(tile);
+            }
+        }
+
+
+        //always add this last
+        currentTile.position = endPos;
         path.Add(endPos);
-       
+
         //return path;
         return path;
     }
 
-    /// <summary>
-    /// Note:
-    /// Check if it has walls,
-    /// Set & Get the: FScore, GScore & HScore
-    /// </summary>
-    private void CalculateNextNode()
+    private List<Cell> GetAvailibleNeigbours(Node current, Cell[,] grid)
     {
+        Cell originCell = new Cell();   //The Cell it is being calculated from
+        originCell.gridPosition = current.position;
 
+        List<Cell> returnCells = new List<Cell>();
+
+        List<Cell> neighbours = originCell.GetNeighbours(grid);
+
+        foreach (var cell in neighbours)
+        {
+            if (cell.gridPosition.y > current.position.y)
+            {
+                if (cell.HasWall(Wall.DOWN))
+                    continue;
+
+                returnCells.Add(cell);
+            }
+            else if(cell.gridPosition.y < current.position.y)
+            {
+                if (cell.HasWall(Wall.UP))
+                    continue;
+
+                returnCells.Add(cell);
+            }
+
+            if (cell.gridPosition.x > current.position.x)
+            {
+                if (cell.HasWall(Wall.LEFT))
+                    continue;
+
+                returnCells.Add(cell);
+            }
+            else if(cell.gridPosition.x < current.position.x)
+            {
+                if (cell.HasWall(Wall.RIGHT))
+                    continue;
+
+                returnCells.Add(cell);
+            }
+
+        }
+
+
+
+        return returnCells;
     }
 
     /// <summary>
@@ -66,11 +152,22 @@ public class Astar
         public Vector2Int position; //Position on the grid
         public Node parent; //Parent Node of this node
 
-        public float FScore { //GScore + HScore
+        public float FScore
+        { //GScore + HScore
             get { return GScore + HScore; }
         }
-        public float GScore; //Current Travelled Distance (Step distance + previous step distance)
+        public float GScore; //G score = the steps set +1
         public float HScore; //Distance estimated based on Heuristic
+
+        /// <summary>
+        /// Manhattan Distance calculation
+        /// </summary>
+        /// <param name="a"></param>
+        /// <returns></returns>
+        public float CalculateManhattan(Vector2Int a)
+        {
+            return Mathf.Abs(position.x - a.x) + Mathf.Abs(position.y - a.y);
+        }
 
         public Node() { }
         public Node(Vector2Int position, Node parent, int GScore, int HScore)
