@@ -20,128 +20,175 @@ public class Astar
     /// 
 
     private const int GScoreStep = 1;
+    private Cell[,] worldGrid = new Cell[0,0];
+    private int iterationsCounter = 0;
+    private bool isWalking = true;
 
     public List<Vector2Int> FindPathToTarget(Vector2Int startPos, Vector2Int endPos, Cell[,] grid)
     {
-        List<Vector2Int> path = new List<Vector2Int>();
+        worldGrid = grid;
+        isWalking = true;
+        iterationsCounter = 0;
 
-        List<Vector2Int> availableTiles = new List<Vector2Int>();
+        List<Node> Maze = new List<Node>(); //The collective tiles that are viewed
+        List<Vector2Int> path = new List<Vector2Int>(); //The Path that will be returned
 
-        List<Node> currentNodes = new List<Node>();
-        
+        List<Vector2Int> availableTiles = new List<Vector2Int>();   //The tiles that have been avaible from the neighbours
+
 
         Node currentTile = new Node();  //the orign form where you are calculating
         currentTile.position = startPos;
         currentTile.GScore = 0;
         currentTile.HScore = currentTile.CalculateManhattan(endPos);
+        currentTile.hasVisited = false;
+        Maze.Add(currentTile);
 
-        //First point of path
-        path.Add(currentTile.position);
-
-        foreach (var tile in GetAvailibleNeigbours(currentTile, grid))
+        while (isWalking)
         {
-            Node tileNode = new Node();
-            tileNode.position = tile.gridPosition;
-            tileNode.GScore = currentTile.GScore + GScoreStep;
-            tileNode.HScore = tileNode.CalculateManhattan(endPos);
-
-            currentNodes.Add(tileNode);
-        }
-
-        Node lowestNode = currentNodes[0];
-        float minFScore = currentNodes[0].FScore;
-
-        foreach (var node in currentNodes)
-        {
-            if(node.FScore < minFScore)
+            ++iterationsCounter;
+            Maze = IterateAStar(Maze, endPos);
+            foreach (var node in Maze)
             {
-                lowestNode = node;
-                minFScore = node.FScore;
-            }
-        }
-
-        path.Add(lowestNode.position);
-
-        while (true)
-        {
-            break;
-            if (currentTile.position == endPos)
-                break;
-
-            List<Vector2Int> newTiles = new List<Vector2Int>();
-
-            foreach (var tile in availableTiles)
-            {
-                currentTile.position = tile;
-
-                foreach (var t in GetAvailibleNeigbours(currentTile, grid))
+                if (node.hasVisited)
                 {
-                    newTiles.Add(t.gridPosition);
-                    path.Add(t.gridPosition);
+                    isWalking = node.HScore > 0;
                 }
             }
-            
-            foreach(var tile in newTiles)
-            {
-                availableTiles.Add(tile);
-            }
         }
 
+        path = ReverseCreatePath(Maze);
 
-        //always add this last
-        currentTile.position = endPos;
-        path.Add(endPos);
-
-        //return path;
         return path;
     }
 
-    private List<Cell> GetAvailibleNeigbours(Node current, Cell[,] grid)
+    private List<Node> IterateAStar(List<Node> nodes, Vector2Int target)
     {
-        Cell originCell = new Cell();   //The Cell it is being calculated from
-        originCell.gridPosition = current.position;
+        List<Node> maze = new List<Node>(nodes);
+        int bestF = int.MaxValue;
+        int bestIndex = -1;
 
-        List<Cell> returnCells = new List<Cell>();
-
-        List<Cell> neighbours = originCell.GetNeighbours(grid);
-
-        foreach (var cell in neighbours)
+        for (int i = 0; i < maze.Count; i++)
         {
-            if (cell.gridPosition.y > current.position.y)
+            if (!maze[i].hasVisited)
             {
-                if (cell.HasWall(Wall.DOWN))
-                    continue;
-
-                returnCells.Add(cell);
+                if (maze[i].FScore < bestF)
+                {
+                    bestF = maze[i].FScore;
+                    bestIndex = i;
+                }
             }
-            else if(cell.gridPosition.y < current.position.y)
-            {
-                if (cell.HasWall(Wall.UP))
-                    continue;
-
-                returnCells.Add(cell);
-            }
-
-            if (cell.gridPosition.x > current.position.x)
-            {
-                if (cell.HasWall(Wall.LEFT))
-                    continue;
-
-                returnCells.Add(cell);
-            }
-            else if(cell.gridPosition.x < current.position.x)
-            {
-                if (cell.HasWall(Wall.RIGHT))
-                    continue;
-
-                returnCells.Add(cell);
-            }
-
         }
 
+        maze[bestIndex].hasVisited = true;
 
+        //if no unchecked nodes remain
+        if (bestIndex == -1)
+            return maze;
 
-        return returnCells;
+        //Defining directions for the next steps
+        Vector2Int[] directions = {
+            new Vector2Int(0, -1),
+            new Vector2Int(0, 1),
+            new Vector2Int(-1, 0),
+            new Vector2Int(1, 0)
+        };
+
+        foreach (Vector2Int direction in directions)
+        {
+            bool isFlagged = false;
+            Vector2Int nextLocation = direction + maze[bestIndex].position;
+
+            foreach (Node node in maze)
+            {
+                if (node.position == nextLocation)
+                {
+                    isFlagged = true;
+                    break;
+                }
+            }
+
+            if (isFlagged)
+                continue;
+
+            if (IsFree(maze[bestIndex], direction))
+            {
+                Node nextNode = new Node();
+                nextNode.position = nextLocation;
+                nextNode.GScore = maze[bestIndex].GScore + GScoreStep;
+                nextNode.HScore = nextNode.CalculateManhattan(target);
+                nextNode.hasVisited = false;
+
+                maze.Add(nextNode);
+            }
+        }
+
+        return maze;
+    }
+
+    //NOTE: If it doesn't work in practice revert the Y axis
+    private bool IsFree(Node currentNode, Vector2Int direction)
+    {
+        bool hasWall = false;
+
+        Cell thisCell = new Cell();
+        int x = currentNode.position.x;
+        int y = currentNode.position.y;
+        thisCell = worldGrid[x,y];
+
+        if (direction == new Vector2Int(-1, 0))
+        {
+            hasWall = thisCell.HasWall(Wall.LEFT);
+        }
+        else if (direction == new Vector2Int(1, 0))
+        {
+            hasWall = thisCell.HasWall(Wall.RIGHT);
+        }
+        else if(direction == new Vector2Int(0, -1))
+        {
+            hasWall = thisCell.HasWall(Wall.DOWN);
+        }
+        else if (direction == new Vector2Int(0, 1))
+        {
+            hasWall = thisCell.HasWall(Wall.UP);
+        }
+
+        return !hasWall;
+    }
+
+    private bool isNeighbour(Vector2Int posA, Vector2Int posB)
+    {
+        int dx = Mathf.Abs(posA.x - posB.x);
+        int dy = Mathf.Abs(posA.y - posB.y);
+        return (dx + dy) == 1;
+    }
+
+    private List<Vector2Int> ReverseCreatePath(List<Node> maze)
+    {
+        List<Vector2Int > path = new List<Vector2Int>();
+
+        Node workNode = maze.First(node => node.HScore == 0);
+        int g = workNode.GScore;
+
+        //Start with the target and walk back to the starting point
+        path.Add(workNode.position);
+
+        while (g > 0)
+        {
+            g -= GScoreStep;
+            //Find a neighbour with the pervious G score
+            foreach (var node in maze)
+            {
+                if(isNeighbour(node.position,workNode.position ) && node.GScore == g)
+                {
+                    workNode = node;
+                    path.Add(node.position);
+                    break;
+                }
+            }
+        }
+
+        path.Reverse();
+        return path;
     }
 
     /// <summary>
@@ -152,19 +199,20 @@ public class Astar
         public Vector2Int position; //Position on the grid
         public Node parent; //Parent Node of this node
 
-        public float FScore
+        public bool hasVisited;
+        public int FScore
         { //GScore + HScore
             get { return GScore + HScore; }
         }
-        public float GScore; //G score = the steps set +1
-        public float HScore; //Distance estimated based on Heuristic
+        public int GScore; //G score = the steps set +1
+        public int HScore; //Distance estimated based on Heuristic
 
         /// <summary>
         /// Manhattan Distance calculation
         /// </summary>
         /// <param name="a"></param>
         /// <returns></returns>
-        public float CalculateManhattan(Vector2Int a)
+        public int CalculateManhattan(Vector2Int a)
         {
             return Mathf.Abs(position.x - a.x) + Mathf.Abs(position.y - a.y);
         }
